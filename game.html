@@ -14,25 +14,168 @@
         body {
             margin: 0;
             overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background-color: #fafafa;
         }
+
         #gameOverMessage {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 40px;
+            font-size: 24px;
             color: red;
-            font-family: Arial, sans-serif;
+            font-family: 'DexterFont', Arial, sans-serif;
             display: none;
+            text-align: center;
+        }
+
+        #playAgainButton {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            font-family: 'DexterFont', Arial, sans-serif;
+            padding: 10px 20px;
+            background-color: #ffcc00;
+            border: 2px solid #ff6600;
+            color: #000;
+            cursor: pointer;
+            display: none;
+        }
+        #playAgainButton:hover {
+            background-color: #ff9900;
+        }
+
+        #navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background-color: #FF5733; /* Dexter-inspired color */
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        #navbar h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        #navbar button {
+            background-color: #ffcc00;
+            border: 2px solid #ff6600;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            color: black;
+        }
+
+        #navbar button:hover {
+            background-color: #ff9900;
+        }
+
+        #cryptoInfo {
+            color: white;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        #scrollSection {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: #f1f1f1;
+            padding: 50px;
+            transition: top 1s ease-out;
+        }
+
+        #scrollSection.show {
+            top: 0;
+        }
+
+        #scrollSection h2 {
+            font-size: 32px;
+            text-align: center;
+        }
+
+        #scrollSection p {
+            font-size: 18px;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            #navbar {
+                flex-direction: column;
+                padding: 10px 10px;
+            }
+
+            #navbar h1 {
+                font-size: 18px;
+                margin-bottom: 5px;
+            }
+
+            #navbar button {
+                font-size: 12px;
+                padding: 5px 10px;
+            }
+
+            #cryptoInfo {
+                font-size: 12px;
+            }
+        }
+
+        .emoticon {
+            position: absolute;
+            font-size: 50px;
+            animation: bounce 1s ease-out infinite, spin 2s linear infinite;
+        }
+
+        @keyframes bounce {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-30px); }
+            100% { transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
+    <div id="navbar">
+        <h1>deXter Coin</h1>
+        <button id="buyButton">Buy</button>
+        <div id="cryptoInfo">Account: 0x1234567890abcdef (Dummy Account)</div>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
-    <div id="gameOverMessage">Game Over!</div>
+    <div id="gameOverMessage">GAME OVER</div>
+    <button id="playAgainButton">Play Again</button>
+
+    <div id="scrollSection">
+        <h2>About deXter Coin</h2>
+        <p>Introducing deXter Coin: A cryptocurrency inspired by the genius of Dexter and his adventures in Dexter's Laboratory. This coin is designed to revolutionize the gaming world with seamless integration into digital ecosystems like the Solana blockchain. Just like Dexter's endless innovations, deXter Coin represents a new era in decentralized finance—fast, efficient, and future-proof.</p>
+        <p>Through the game "Dexter's Laboratory Game," players can experience the thrill of Dexter's mind and his world, while seamlessly interacting with the currency that powers the game economy. Get ready for a gaming experience that's as dynamic and unique as Dexter himself!</p>
+    </div>
+
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const gameOverMessage = document.getElementById('gameOverMessage');
+        const playAgainButton = document.getElementById('playAgainButton');
+        const scrollSection = document.getElementById('scrollSection');
 
         // Set canvas size to window size
         canvas.width = window.innerWidth;
@@ -49,26 +192,32 @@
         const deeDeeImg = new Image();
         deeDeeImg.src = './deeDee.png'; // Sprite Dee Dee local
 
+        const itemsImg = [
+            './test_tube.png', // Test tube image
+            './wrench.png',    // Wrench image
+            './gear.png'       // Gear image
+        ];
+
         let dexter = {
             x: 100,
             y: 100,
-            width: 150, // Dexter is now 50% larger initially
-            height: 150,
+            width: 50,
+            height: 50,
             speed: 5
         };
 
-        let deeDee = {
-            x: 400,
-            y: 400,
-            width: 100,
-            height: 100,
-            speed: 2.85 // Dee Dee is now 5% slower
-        };
+        let deeDees = [{
+            x: 500,
+            y: 300,
+            width: 85,
+            height: 85,
+            speed: 2.85
+        }]; // Dee Dee appears at the start
 
         let items = [];
         let score = 0;
         let gameOver = false;
-        let gameStarted = false; // Flag to check if the game has started
+        let gameStarted = false;
 
         const keys = {
             ArrowUp: false,
@@ -86,12 +235,16 @@
             mouseY = event.clientY;
         });
 
-        // Start game on first click
+        // Start game on first click or tap
         canvas.addEventListener('click', () => {
             if (!gameStarted) {
-                gameStarted = true; // Start the game
-                gameLoop(); // Start the game loop
+                gameStarted = true;
+                gameLoop();
             }
+        });
+
+        playAgainButton.addEventListener('click', () => {
+            location.reload();
         });
 
         // Spawn items every 3 seconds
@@ -99,18 +252,18 @@
             const item = {
                 x: Math.random() * (canvas.width - 50),
                 y: Math.random() * (canvas.height - 50),
-                radius: 25 // Radius for the circle item
+                imgSrc: itemsImg[Math.floor(Math.random() * itemsImg.length)]
             };
             items.push(item);
         }
-        setInterval(spawnItem, 3000); // spawn every 3 seconds
+        setInterval(spawnItem, 3000);
 
         // Collision detection
         function checkCollision(rect1, rect2) {
             return (
-                rect1.x < rect2.x + rect2.radius * 2 &&
+                rect1.x < rect2.x + 25 &&
                 rect1.x + rect1.width > rect2.x &&
-                rect1.y < rect2.y + rect2.radius * 2 &&
+                rect1.y < rect2.y + 25 &&
                 rect1.y + rect1.height > rect2.y
             );
         }
@@ -120,79 +273,112 @@
             return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
         }
 
-        // Check if Dee Dee catches Dexter (only at the center of Dee Dee)
+        // Check if Dee Dee catches Dexter
         function checkGameOver() {
-            // Calculate the centers of Dexter and Dee Dee
-            const dexterCenterX = dexter.x + dexter.width / 2;
-            const dexterCenterY = dexter.y + dexter.height / 2;
-            const deeDeeCenterX = deeDee.x + deeDee.width / 2;
-            const deeDeeCenterY = deeDee.y + deeDee.height / 2;
+            for (let i = 0; i < deeDees.length; i++) {
+                const distance = getDistance(
+                    dexter.x + dexter.width / 2,
+                    dexter.y + dexter.height / 2,
+                    deeDees[i].x + deeDees[i].width / 2,
+                    deeDees[i].y + deeDees[i].height / 2
+                );
 
-            // Check if distance between centers is below a certain threshold (e.g., 10 pixels)
-            const distance = getDistance(dexterCenterX, dexterCenterY, deeDeeCenterX, deeDeeCenterY);
-
-            // If the distance is small enough, it triggers game over
-            if (distance < 10) { // 10 pixels threshold
-                gameOver = true;
-                document.getElementById('gameOverMessage').style.display = 'block'; // Show game over message
+                if (distance < 50) {
+                    gameOver = true;
+                    gameOverMessage.style.display = 'block';
+                    playAgainButton.style.display = 'block';
+                    break;
+                }
             }
         }
 
+        // Spawn more DeeDees at different scores
+        function spawnMoreDeeDees() {
+            if (score >= 5 && deeDees.length < 2) {
+                deeDees.push({ x: 800, y: 400, width: 85, height: 85, speed: 2.85 });
+            }
+            if (score >= 25 && deeDees.length < 3) {
+                deeDees.push({ x: 900, y: 600, width: 85, height: 85, speed: 2.85 });
+            }
+            if (score >= 50 && deeDees.length < 4) {
+                deeDees.push({ x: 700, y: 300, width: 85, height: 85, speed: 2.85 });
+            }
+        }
+
+        function spawnEmoticons(score) {
+            const emoticon = document.createElement('div');
+            emoticon.textContent = '🎉';
+            emoticon.classList.add('emoticon');
+            emoticon.style.left = `${dexter.x}px`;
+            emoticon.style.top = `${dexter.y}px`;
+            document.body.appendChild(emoticon);
+
+            setTimeout(() => {
+                document.body.removeChild(emoticon);
+            }, 2000); // Keep emoticon longer
+        }
+
         function update() {
-            if (gameOver) return; // Stop the game if it's over
+            if (gameOver) return;
 
             // Move Dexter to mouse position
             dexter.x = mouseX - dexter.width / 2;
             dexter.y = mouseY - dexter.height / 2;
 
-            // Dee Dee follows Dexter
-            if (dexter.x > deeDee.x) deeDee.x += deeDee.speed;
-            if (dexter.x < deeDee.x) deeDee.x -= deeDee.speed;
-            if (dexter.y > deeDee.y) deeDee.y += deeDee.speed;
-            if (dexter.y < deeDee.y) deeDee.y -= deeDee.speed;
+            // Move Dee Dees to catch Dexter
+            deeDees.forEach((deeDee) => {
+                const dx = dexter.x - deeDee.x;
+                const dy = dexter.y - deeDee.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
 
-            // Keep characters inside the canvas
-            dexter.x = Math.max(0, Math.min(canvas.width - dexter.width, dexter.x));
-            dexter.y = Math.max(0, Math.min(canvas.height - dexter.height, dexter.y));
-            deeDee.x = Math.max(0, Math.min(canvas.width - deeDee.width, deeDee.x));
-            deeDee.y = Math.max(0, Math.min(canvas.height - deeDee.height, deeDee.y));
+                if (distance > 0) {
+                    deeDee.x += (dx / distance) * deeDee.speed;
+                    deeDee.y += (dy / distance) * deeDee.speed;
+                }
+            });
 
             // Check for item collection
             items = items.filter((item) => {
-                if (checkCollision(dexter, item)) {
-                    score += 1; // Increment score by 1 for each item
-                    dexter.width *= 1.05; // Increase Dexter's width by 5% for each point collected
-                    dexter.height *= 1.05; // Increase Dexter's height by 5% for each point collected
-                    return false; // Remove item from the array
+                if (
+                    dexter.x < item.x + 25 &&
+                    dexter.x + dexter.width > item.x &&
+                    dexter.y < item.y + 25 &&
+                    dexter.y + dexter.height > item.y
+                ) {
+                    score += 1;
+                    if ([10, 50, 100, 150, 200, 300, 500].includes(score)) {
+                        spawnEmoticons(score);
+                    }
+                    return false;
                 }
                 return true;
             });
 
-            // Check if Dee Dee catches Dexter
+            spawnMoreDeeDees();
             checkGameOver();
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Draw background image
             if (backgroundImg.complete) {
-                ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height); // Draw the background
+                ctx.drawImage(backgroundImg, -canvas.width * 0.2, 0, canvas.width * 1.4, canvas.height);
             }
 
-            // Draw Dexter with scaling applied
+            // Draw Dexter
             ctx.drawImage(dexterImg, dexter.x, dexter.y, dexter.width, dexter.height);
 
-            // Draw Dee Dee
-            ctx.drawImage(deeDeeImg, deeDee.x, deeDee.y, deeDee.width, deeDee.height);
+            // Draw Dee Dees
+            deeDees.forEach((deeDee) => {
+                ctx.drawImage(deeDeeImg, deeDee.x, deeDee.y, deeDee.width, deeDee.height);
+            });
 
-            // Draw items (circles)
+            // Draw items
             items.forEach((item) => {
-                ctx.beginPath();
-                ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2); // Draw circle
-                ctx.fillStyle = 'gold'; // Color of the item (yellow for coins)
-                ctx.fill();
-                ctx.closePath();
+                const img = new Image();
+                img.src = item.imgSrc;
+                ctx.drawImage(img, item.x, item.y, 50, 50);
             });
 
             // Display score
@@ -204,16 +390,30 @@
         function gameLoop() {
             update();
             draw();
-            if (gameStarted && !gameOver) requestAnimationFrame(gameLoop); // Continue game loop if not game over and game has started
+            if (gameStarted && !gameOver) requestAnimationFrame(gameLoop);
         }
 
         // Wait for images to load before starting the game
         dexterImg.onload = () => {
             deeDeeImg.onload = () => {
-                // Initial display before game start
                 draw();
             };
         };
+
+        // Detect mouse wheel scroll to show section
+        let scrollPosition = 0;
+
+        canvas.addEventListener('wheel', (event) => {
+            if (event.deltaY > 0) {
+                scrollPosition++;
+            } else {
+                scrollPosition--;
+            }
+
+            if (scrollPosition > 1) {
+                scrollSection.classList.add('show');
+            }
+        });
     </script>
 </body>
 </html>
